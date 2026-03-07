@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { supabase, Player } from './lib/supabase';
 
-// Importación de componentes (Asegúrate de que estén en src/components)
+// Importación de componentes
 import { Auth } from './components/Auth';
 import { Layout } from './components/Layout';
 import { Home } from './components/Home';
@@ -13,7 +13,6 @@ import { MatchCenter } from './components/MatchCenter';
 import { BottomNav } from './components/BottomNav';
 import { MatchForm } from './components/MatchForm';
 
-// Definición de las páginas disponibles
 type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'match-center' | 'match-form';
 
 function AppContent() {
@@ -23,49 +22,36 @@ function AppContent() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
-  // Efecto para cargar los jugadores reales desde Supabase
   useEffect(() => {
     if (user) {
       const fetchPlayers = async () => {
-        const { data, error } = await supabase
-          .from('players')
-          .select('*')
-          .order('name');
+        const { data } = await supabase.from('players').select('*').order('name');
         if (data) setPlayers(data);
-        if (error) console.error("Error cargando jugadores:", error);
       };
       fetchPlayers();
     }
   }, [user]);
 
-  // Manejador de navegación limpia
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
     if (page !== 'player-detail') setSelectedPlayer(null);
     if (page !== 'player-form') setEditingPlayer(null);
   };
 
-  // Renderizado condicional de las secciones
   const renderContent = () => {
     switch (currentPage) {
       case 'home':
         return <Home onNavigate={handleNavigate} />;
-      
       case 'match-form':
         return (
           <MatchForm 
             players={players} 
             onBack={() => setCurrentPage('match-center')} 
-            onSuccess={() => {
-              // Refrescamos datos si es necesario y volvemos a resultados
-              setCurrentPage('match-center');
-            }} 
+            onSuccess={() => setCurrentPage('match-center')} 
           />
         );
-
       case 'match-center':
         return <MatchCenter />;
-
       case 'players':
         return (
           <PlayersList
@@ -74,34 +60,17 @@ function AppContent() {
             onCreatePlayer={() => { setEditingPlayer(null); setCurrentPage('player-form'); }}
           />
         );
-
       case 'player-detail':
         return selectedPlayer ? (
-          <PlayerDetail 
-            player={selectedPlayer} 
-            onBack={() => setCurrentPage('players')} 
-            onEdit={(p) => { setEditingPlayer(p); setCurrentPage('player-form'); }} 
-          />
+          <PlayerDetail player={selectedPlayer} onBack={() => setCurrentPage('players')} onEdit={(p) => { setEditingPlayer(p); setCurrentPage('player-form'); }} />
         ) : null;
-
       case 'player-form':
-        return (
-          <PlayerForm 
-            player={editingPlayer} 
-            onBack={() => setCurrentPage('players')} 
-            onSuccess={() => {
-              setCurrentPage('players');
-              setEditingPlayer(null);
-            }} 
-          />
-        );
-
+        return <PlayerForm player={editingPlayer} onBack={() => setCurrentPage('players')} onSuccess={() => { setCurrentPage('players'); setEditingPlayer(null); }} />;
       default:
         return <Home onNavigate={handleNavigate} />;
     }
   };
 
-  // Pantalla de carga inicial
   if (loading) {
     return (
       <div className="min-h-screen bg-[#1C1C2E] flex items-center justify-center">
@@ -110,25 +79,25 @@ function AppContent() {
     );
   }
 
-  // Si no hay sesión, mostramos el login
   if (!user) {
     return <Auth onSuccess={() => setCurrentPage('home')} />;
   }
 
-  // Estructura principal con Layout y Navegación Inferior
   return (
-    <div className="min-h-screen bg-[#1C1C2E] text-white">
-      <Layout currentPage={currentPage} onNavigate={handleNavigate}>
-        <main className="container mx-auto px-4 py-6 pb-24">
-          {renderContent()}
-        </main>
-      </Layout>
-      <BottomNav activePage={currentPage} onNavigate={handleNavigate} />
+    /* Contenedor principal: min-h-screen evita el fondo blanco y max-w-md lo mantiene compacto en PC */
+    <div className="min-h-screen w-full bg-[#1C1C2E] text-white flex justify-center overflow-x-hidden">
+      <div className="w-full max-w-md md:max-w-lg flex flex-col relative shadow-2xl shadow-black">
+        <Layout currentPage={currentPage} onNavigate={handleNavigate}>
+          <main className="flex-1 container mx-auto px-4 py-6 pb-28">
+            {renderContent()}
+          </main>
+        </Layout>
+        <BottomNav activePage={currentPage} onNavigate={handleNavigate} />
+      </div>
     </div>
   );
 }
 
-// Componente Raíz con el Proveedor de Autenticación
 export default function App() {
   return (
     <AuthProvider>
