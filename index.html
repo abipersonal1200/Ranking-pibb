@@ -1,19 +1,31 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PIBB Player Management System</title>
-    <meta name="description" content="Sistema de gestión de jugadores de la Liga de Baloncesto PIBB" />
-    <meta property="og:title" content="PIBB - Liga de Baloncesto" />
-    <meta property="og:description" content="Sistema de gestión de jugadores de la Liga de Baloncesto PIBB" />
-    <meta property="og:image" content="https://bolt.new/static/og_default.png" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <meta name="theme-color" content="#1C1C2E" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <title>PIBB - Liga de Ping Pong</title>
+    
+    <style>
+      /* 3. PREVENCIÓN DE FONDO BLANCO ANTES DE CARGAR */
+      /* Esto asegura que mientras la App carga, el fondo ya sea el oscuro de PIBB */
+      html, body {
+        background-color: #1C1C2E !important;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden; /* Evita scrolls accidentales fuera de la App */
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/Src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
