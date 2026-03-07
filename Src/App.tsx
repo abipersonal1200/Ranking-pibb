@@ -108,3 +108,13 @@ function App() {
 }
 
 export default App;
+function App() {
+  return (
+    <div className="min-h-screen bg-[#1C1C2E] text-white pb-20"> 
+      <main className="container mx-auto px-4 py-8">
+        <MatchCenter />   
+      </main>
+      <BottomNav />
+    </div>
+  );
+}
