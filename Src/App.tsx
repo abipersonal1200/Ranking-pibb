@@ -1,16 +1,19 @@
-import { BottomNav } from './components/BottomNav';
-import { MatchCenter } from './components/MatchCenter';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { supabase, Player } from './lib/supabase';
+
+// Importación de componentes
 import { Auth } from './components/Auth';
 import { Layout } from './components/Layout';
 import { Home } from './components/Home';
 import { PlayersList } from './components/PlayersList';
 import { PlayerDetail } from './components/PlayerDetail';
 import { PlayerForm } from './components/PlayerForm';
-import { Player } from './lib/supabase';
+import { MatchCenter } from './components/MatchCenter';
+import { BottomNav } from './components/BottomNav';
 
-type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'login';
+// Definición de las páginas disponibles en el Ranking PIBB
+type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'match-center';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -18,18 +21,21 @@ function AppContent() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
+  // Pantalla de carga inicial
   if (loading) {
     return (
       <div className="min-h-screen bg-[#1C1C2E] flex items-center justify-center">
-        <p className="text-gray-400">Cargando...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
       </div>
     );
   }
 
+  // Si no hay sesión, mostrar login (Auth)
   if (!user) {
     return <Auth onSuccess={() => setCurrentPage('home')} />;
   }
 
+  // Funciones de navegación y lógica
   const handleViewPlayer = (player: Player) => {
     setSelectedPlayer(player);
     setCurrentPage('player-detail');
@@ -52,14 +58,18 @@ function AppContent() {
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
+    // Limpiar estados al navegar para evitar basura visual
     if (page !== 'player-detail') setSelectedPlayer(null);
     if (page !== 'player-form') setEditingPlayer(null);
   };
 
+  // Renderizado dinámico según la página seleccionada
   const renderContent = () => {
     switch (currentPage) {
       case 'home':
-        return <Home onNavigate={(page) => setCurrentPage(page)} />;
+        return <Home onNavigate={handleNavigate} />;
+      case 'match-center':
+        return <MatchCenter />;
       case 'players':
         return (
           <PlayersList
@@ -85,36 +95,36 @@ function AppContent() {
           />
         );
       default:
-        return <Home onNavigate={(page) => setCurrentPage(page)} />;
+        return <Home onNavigate={handleNavigate} />;
     }
   };
 
   return (
-    <Layout
-      currentPage={currentPage === 'home' ? 'home' : 'players'}
-      onNavigate={handleNavigate}
-    >
-      {renderContent()}
-    </Layout>
+    <div className="min-h-screen bg-[#1C1C2E] text-white">
+      {/* El Layout envuelve el contenido principal */}
+      <Layout 
+        currentPage={currentPage} 
+        onNavigate={handleNavigate}
+      >
+        <main className="container mx-auto px-4 py-6 pb-24">
+          {renderContent()}
+        </main>
+      </Layout>
+
+      {/* Barra de navegación inferior fija (estilo Match Center) */}
+      <BottomNav 
+        activePage={currentPage} 
+        onNavigate={handleNavigate} 
+      />
+    </div>
   );
 }
 
-function App() {
+// Componente principal con el Proveedor de Autenticación de Supabase
+export default function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
-  );
-}
-
-export default App;
-function App() {
-  return (
-    <div className="min-h-screen bg-[#1C1C2E] text-white pb-20"> 
-      <main className="container mx-auto px-4 py-8">
-        <MatchCenter />   
-      </main>
-      <BottomNav />
-    </div>
   );
 }
