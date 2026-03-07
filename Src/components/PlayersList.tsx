@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, User as UserIcon, CreditCard as Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, User as UserIcon, Edit, Trash2 } from 'lucide-react';
 import { supabase, Player } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,7 +13,6 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive' | 'injured'>('all');
   const { user, profile } = useAuth();
 
   useEffect(() => {
@@ -25,7 +24,7 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
     const { data, error } = await supabase
       .from('players')
       .select('*')
-      .order('name', { ascending: true });
+      .order('first_name', { ascending: true });
 
     if (!error && data) {
       setPlayers(data);
@@ -48,10 +47,10 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
   };
 
   const filteredPlayers = players.filter(player => {
-    const matchesSearch = player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         player.team?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || player.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm.toLowerCase()) ||
+                         player.player_number?.toString().includes(searchTerm);
+    return matchesSearch;
   });
 
   const canModify = (player: Player) => {
@@ -62,8 +61,8 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Jugadores</h1>
-          <p className="text-gray-400">Listado de jugadores registrados en la liga</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Ranking PIBB</h1>
+          <p className="text-gray-400">Listado oficial de jugadores de Ping Pong</p>
         </div>
         {user && (
           <button
@@ -76,38 +75,27 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
         )}
       </div>
 
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
+      <div className="mb-6">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Buscar por nombre o equipo..."
+            placeholder="Buscar por nombre o número..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-[#252538] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         </div>
-
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-          className="px-4 py-2 bg-[#252538] border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
-          <option value="all">Todos los estados</option>
-          <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
-          <option value="injured">Lesionados</option>
-        </select>
       </div>
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-gray-400">Cargando datos...</p>
+          <p className="text-gray-400">Cargando ranking...</p>
         </div>
       ) : filteredPlayers.length === 0 ? (
         <div className="text-center py-12 bg-[#252538] rounded-lg border border-gray-700">
           <UserIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">No se encontraron jugadores</p>
+          <p className="text-gray-400">No hay jugadores registrados en el ranking</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -119,22 +107,16 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-4">
-                  {player.photo_url ? (
-                    <img
-                      src={player.photo_url}
-                      alt={player.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center">
-                      <UserIcon className="w-8 h-8 text-gray-400" />
-                    </div>
-                  )}
+                  <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center border-2 border-orange-500/30">
+                    <span className="text-xl font-bold text-orange-400">
+                      {player.player_number || '—'}
+                    </span>
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-white text-lg">{player.name}</h3>
-                    {player.jersey_number && (
-                      <p className="text-orange-400 text-sm">#{player.jersey_number}</p>
-                    )}
+                    <h3 className="font-semibold text-white text-lg">
+                      {player.first_name} {player.last_name}
+                    </h3>
+                    <p className="text-gray-400 text-sm">Jugador PIBB</p>
                   </div>
                 </div>
 
@@ -147,7 +129,7 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
                       }}
                       className="p-2 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-4 h-4 text-white" />
                     </button>
                     <button
                       onClick={(e) => handleDelete(player.id, e)}
@@ -159,50 +141,16 @@ export function PlayersList({ onViewPlayer, onEditPlayer, onCreatePlayer }: Play
                 )}
               </div>
 
-              <div className="space-y-2 text-sm">
-                {player.position && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Posición:</span>
-                    <span className="text-white">{player.position}</span>
-                  </div>
-                )}
-                {player.team && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Equipo:</span>
-                    <span className="text-white">{player.team}</span>
-                  </div>
-                )}
+              <div className="space-y-2 text-sm border-t border-gray-700 pt-4">
                 <div className="flex justify-between text-gray-400">
-                  <span>Estado:</span>
-                  <span className={`px-2 py-1 rounded text-xs ${
-                    player.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                    player.status === 'injured' ? 'bg-red-500/20 text-red-400' :
-                    'bg-gray-500/20 text-gray-400'
-                  }`}>
-                    {player.status === 'active' ? 'Activo' :
-                     player.status === 'injured' ? 'Lesionado' : 'Inactivo'}
-                  </span>
+                  <span>Mano Dominante:</span>
+                  <span className="text-white font-medium">{player.dominant_hand || 'No definida'}</span>
+                </div>
+                <div className="flex justify-between text-gray-400">
+                  <span>Raqueta:</span>
+                  <span className="text-orange-400 font-medium">{player.racket_brand || 'Genérica'}</span>
                 </div>
               </div>
-
-              {(player.stats_points_avg > 0 || player.stats_rebounds_avg > 0 || player.stats_assists_avg > 0) && (
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-orange-400 font-bold">{player.stats_points_avg}</p>
-                      <p className="text-xs text-gray-400">PTS</p>
-                    </div>
-                    <div>
-                      <p className="text-orange-400 font-bold">{player.stats_rebounds_avg}</p>
-                      <p className="text-xs text-gray-400">REB</p>
-                    </div>
-                    <div>
-                      <p className="text-orange-400 font-bold">{player.stats_assists_avg}</p>
-                      <p className="text-xs text-gray-400">AST</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           ))}
         </div>
