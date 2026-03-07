@@ -1,3 +1,5 @@
+import { BottomNav } from './components/BottomNav';
+import { MatchCenter } from './components/MatchCenter';
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Auth } from './components/Auth';
