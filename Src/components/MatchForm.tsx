@@ -26,13 +26,11 @@ export function MatchForm() {
     
     if (data) {
       setPlayers(data);
-      // Auto-selección: Buscamos tu perfil por el auth_id
       const currentUser = data.find(p => p.auth_id === user?.id);
       if (currentUser) setPlayer1Id(currentUser.id);
     }
   }
 
-  // --- LÓGICA DE VALIDACIÓN DE PUNTOS (Regla del 11 y Diferencia de 2) ---
   const validateScores = (s1: number, s2: number) => {
     const max = Math.max(s1, s2);
     const min = Math.min(s1, s2);
@@ -48,7 +46,6 @@ export function MatchForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validaciones Previas
     const scoreError = validateScores(score1, score2);
     if (scoreError) return setMessage({ type: 'error', text: scoreError });
     if (!player2Id) return setMessage({ type: 'error', text: 'Selecciona un oponente' });
@@ -61,9 +58,17 @@ export function MatchForm() {
       const opponent = players.find(p => p.id === player2Id);
       const challenger = players.find(p => p.id === player1Id);
 
-      if (opponent.pin !== opponentPin) throw new Error('PIN incorrecto. Autorización denegada.');
-
+      // --- LÓGICA BIDIRECCIONAL DE PIN ---
       const isWinnerP1 = score1 > score2;
+      // Si tú (P1) ganas, validamos el PIN del rival. Si tú pierdes, validamos TU propio PIN.
+      const pinToValidate = isWinnerP1 ? opponent.pin : challenger.pin;
+
+      if (opponentPin !== pinToValidate) {
+        throw new Error(isWinnerP1 
+          ? 'PIN del oponente incorrecto. Autorización denegada.' 
+          : 'Tu PIN es incorrecto. Debes autorizar tu propia derrota.');
+      }
+
       const winner = isWinnerP1 ? challenger : opponent;
       const loser = isWinnerP1 ? opponent : challenger;
       
@@ -95,7 +100,11 @@ export function MatchForm() {
       await supabase.from('players').update({ points: (winner.points || 0) + pointsGained, wins: (winner.wins || 0) + 1 }).eq('id', winner.id);
       await supabase.from('players').update({ points: Math.max(0, (loser.points || 0) - 5), losses: (loser.losses || 0) + 1 }).eq('id', loser.id);
 
-      setMessage({ type: 'success', text: `¡Victoria sellada! +${pointsGained} pts${intercambio ? ' e intercambio de puesto' : ''}.` });
+      setMessage({ 
+        type: 'success', 
+        text: isWinnerP1 ? `¡Victoria sellada! +${pointsGained} pts.` : `Derrota registrada. Ánimo para la próxima.`
+      });
+      
       setScore1(0); setScore2(0); setOpponentPin('');
       fetchPlayers();
     } catch (err: any) {
@@ -120,8 +129,6 @@ export function MatchForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        
-        {/* RETADOR (TÚ) - BLOQUEADO VISUALMENTE */}
         <div className="space-y-3">
           <label className="text-[9px] font-black text-gray-600 uppercase ml-4 tracking-[0.2em] flex items-center gap-2">
             <User size={12} className="text-orange-500" /> Atleta Retador (Tú)
@@ -137,33 +144,27 @@ export function MatchForm() {
           </div>
         </div>
 
-        {/* MARCADOR ESTILO ARCADE */}
         <div className="bg-[#161625] p-10 rounded-[3.5rem] border border-white/5 shadow-2xl relative">
           <div className="flex items-center justify-center gap-8 z-10 relative">
-            {/* Jugador 1 Score */}
             <div className="flex flex-col items-center gap-4">
-              <button type="button" onClick={() => setScore1(s => Math.max(0, s + 1))} className="p-2 bg-gray-800 rounded-full text-white"><Plus size={16}/></button>
+              <button type="button" onClick={() => setScore1(s => Math.max(0, s + 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Plus size={16}/></button>
               <input type="number" value={score1} readOnly className="w-24 bg-transparent text-center text-6xl font-black text-white outline-none" />
-              <button type="button" onClick={() => setScore1(s => Math.max(0, s - 1))} className="p-2 bg-gray-800 rounded-full text-white"><Minus size={16}/></button>
+              <button type="button" onClick={() => setScore1(s => Math.max(0, s - 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Minus size={16}/></button>
             </div>
-
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-orange-600/10 rounded-full flex items-center justify-center border border-orange-500/20 animate-pulse">
-                <Zap className="text-orange-500 fill-orange-500 w-5 h-5" />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center border transition-all ${score1 > score2 ? 'bg-orange-600 border-orange-400' : 'bg-gray-800 border-gray-700'}`}>
+                <Zap className={`w-5 h-5 ${score1 > score2 ? 'text-white fill-white' : 'text-gray-600'}`} />
               </div>
               <span className="text-[10px] font-black text-gray-700 mt-2 uppercase tracking-widest">VS</span>
             </div>
-
-            {/* Jugador 2 Score */}
             <div className="flex flex-col items-center gap-4">
-              <button type="button" onClick={() => setScore2(s => Math.max(0, s + 1))} className="p-2 bg-gray-800 rounded-full text-white"><Plus size={16}/></button>
+              <button type="button" onClick={() => setScore2(s => Math.max(0, s + 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Plus size={16}/></button>
               <input type="number" value={score2} readOnly className="w-24 bg-transparent text-center text-6xl font-black text-white outline-none" />
-              <button type="button" onClick={() => setScore2(s => Math.max(0, s - 1))} className="p-2 bg-gray-800 rounded-full text-white"><Minus size={16}/></button>
+              <button type="button" onClick={() => setScore2(s => Math.max(0, s - 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Minus size={16}/></button>
             </div>
           </div>
         </div>
 
-        {/* OPONENTE SELECTOR */}
         <div className="space-y-3">
           <label className="text-[9px] font-black text-gray-600 uppercase ml-4 tracking-[0.2em] flex items-center gap-2">
             <AlertCircle size={12} className="text-red-500" /> Seleccionar Oponente
@@ -179,18 +180,19 @@ export function MatchForm() {
           </select>
         </div>
 
-        {/* PIN DE VALIDACIÓN */}
         <div className="bg-orange-600/5 border border-orange-600/10 p-8 rounded-[3rem] text-center">
-          <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em] mb-4">Confirmación del Rival</p>
+          <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.4em] mb-4 italic">
+            {score1 > score2 ? 'Confirmación del Rival (PIN de él)' : 'Confirmación de Derrota (Tu PIN)'}
+          </p>
           <input 
-            type="password" maxLength={4} placeholder="0000"
+            type="password" maxLength={4} placeholder="PIN"
             value={opponentPin} onChange={(e) => setOpponentPin(e.target.value)}
             className="w-full bg-[#0F0F1A] border-2 border-gray-800 text-center text-white p-5 rounded-2xl font-mono text-4xl tracking-[0.5em] focus:border-orange-500 outline-none shadow-inner"
           />
         </div>
 
         {message.text && (
-          <div className={`p-5 rounded-2xl text-[10px] font-black text-center uppercase border-2 animate-bounce ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-green-500/10 border-green-500/20 text-green-500'}`}>
+          <div className={`p-5 rounded-2xl text-[10px] font-black text-center uppercase border-2 animate-in zoom-in-95 duration-300 ${message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-green-500/10 border-green-500/20 text-green-500'}`}>
             {message.text}
           </div>
         )}
