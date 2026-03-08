@@ -12,10 +12,11 @@ import { PlayerForm } from './components/PlayerForm';
 import { MatchCenter } from './components/MatchCenter';
 import { BottomNav } from './components/BottomNav';
 import { MatchForm } from './components/MatchForm';
-import { Rules } from './components/Rules'; // <-- Nueva importación
+import { Rules } from './components/Rules';
+import { PlayerProfile } from './components/PlayerProfile'; // <-- Nueva importación
 
-// Añadimos 'rules' al tipo Page
-type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'match-center' | 'match-form' | 'rules';
+// Añadimos 'rules' y 'profile' al tipo Page
+type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'match-center' | 'match-form' | 'rules' | 'profile';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -27,7 +28,7 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       const fetchPlayers = async () => {
-        // Cambiamos el orden a 'rank_position' para que coincida con el sistema Ladder
+        // Ordenamos por rank_position para el sistema Ladder de la Liga PIBB
         const { data } = await supabase.from('players').select('*').order('rank_position', { ascending: true });
         if (data) setPlayers(data);
       };
@@ -45,12 +46,13 @@ function AppContent() {
     switch (currentPage) {
       case 'home':
         return <Home onNavigate={handleNavigate} />;
-      case 'rules': // <-- Nueva vista de reglas
+      case 'rules':
         return <Rules />;
+      case 'profile': // <-- Nueva vista de perfil personal
+        return <PlayerProfile />;
       case 'match-form':
         return (
           <MatchForm 
-            // Pasamos los jugadores actualizados para el selector
             onBack={() => setCurrentPage('home')} 
             onSuccess={() => setCurrentPage('home')} 
           />
@@ -96,7 +98,7 @@ function AppContent() {
             {renderContent()}
           </main>
         </Layout>
-        {/* Aquí pasamos la navegación para que funcione el botón de reglas */}
+        {/* Pasamos la navegación para que el BottomNav pueda activar 'rules' y 'profile' */}
         <BottomNav activePage={currentPage} onNavigate={handleNavigate} />
       </div>
     </div>
