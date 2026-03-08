@@ -12,8 +12,10 @@ import { PlayerForm } from './components/PlayerForm';
 import { MatchCenter } from './components/MatchCenter';
 import { BottomNav } from './components/BottomNav';
 import { MatchForm } from './components/MatchForm';
+import { Rules } from './components/Rules'; // <-- Nueva importación
 
-type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'match-center' | 'match-form';
+// Añadimos 'rules' al tipo Page
+type Page = 'home' | 'players' | 'player-detail' | 'player-form' | 'match-center' | 'match-form' | 'rules';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -25,7 +27,8 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       const fetchPlayers = async () => {
-        const { data } = await supabase.from('players').select('*').order('name');
+        // Cambiamos el orden a 'rank_position' para que coincida con el sistema Ladder
+        const { data } = await supabase.from('players').select('*').order('rank_position', { ascending: true });
         if (data) setPlayers(data);
       };
       fetchPlayers();
@@ -42,12 +45,14 @@ function AppContent() {
     switch (currentPage) {
       case 'home':
         return <Home onNavigate={handleNavigate} />;
+      case 'rules': // <-- Nueva vista de reglas
+        return <Rules />;
       case 'match-form':
         return (
           <MatchForm 
-            players={players} 
-            onBack={() => setCurrentPage('match-center')} 
-            onSuccess={() => setCurrentPage('match-center')} 
+            // Pasamos los jugadores actualizados para el selector
+            onBack={() => setCurrentPage('home')} 
+            onSuccess={() => setCurrentPage('home')} 
           />
         );
       case 'match-center':
@@ -73,8 +78,8 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1C1C2E] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-purple-500"></div>
+      <div className="min-h-screen bg-[#0F0F1A] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
       </div>
     );
   }
@@ -84,14 +89,14 @@ function AppContent() {
   }
 
   return (
-    /* Contenedor principal: min-h-screen evita el fondo blanco y max-w-md lo mantiene compacto en PC */
-    <div className="min-h-screen w-full bg-[#1C1C2E] text-white flex justify-center overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#0F0F1A] text-white flex justify-center overflow-x-hidden">
       <div className="w-full max-w-md md:max-w-lg flex flex-col relative shadow-2xl shadow-black">
         <Layout currentPage={currentPage} onNavigate={handleNavigate}>
           <main className="flex-1 container mx-auto px-4 py-6 pb-28">
             {renderContent()}
           </main>
         </Layout>
+        {/* Aquí pasamos la navegación para que funcione el botón de reglas */}
         <BottomNav activePage={currentPage} onNavigate={handleNavigate} />
       </div>
     </div>
