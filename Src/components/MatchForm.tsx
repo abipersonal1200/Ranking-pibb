@@ -6,8 +6,8 @@ import { Sword, ShieldCheck, Trophy, AlertCircle, Zap, Sparkles, User, Minus, Pl
 export function MatchForm() {
   const { user } = useAuth();
   const [players, setPlayers] = useState<any[]>([]);
-  const [player1Id, setPlayer1Id] = useState(''); // Tú
-  const [player2Id, setPlayer2Id] = useState(''); // Oponente
+  const [player1Id, setPlayer1Id] = useState(''); 
+  const [player2Id, setPlayer2Id] = useState(''); 
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
   const [opponentPin, setOpponentPin] = useState('');
@@ -55,15 +55,12 @@ export function MatchForm() {
     setMessage({ type: '', text: '' });
 
     try {
-      // Obtenemos los datos más recientes de la lista cargada
       const opponent = players.find(p => p.id === player2Id);
       const challenger = players.find(p => p.id === player1Id);
 
       if (!challenger || !opponent) throw new Error("Error al identificar a los jugadores.");
 
-      // --- LÓGICA BIDIRECCIONAL DE PIN ---
       const isWinnerP1 = score1 > score2;
-      // Si tú (P1) ganas, validamos el PIN del rival. Si tú pierdes, validamos TU propio PIN.
       const pinToValidate = isWinnerP1 ? opponent.pin : challenger.pin;
 
       if (opponentPin !== pinToValidate) {
@@ -75,13 +72,29 @@ export function MatchForm() {
       const winner = isWinnerP1 ? challenger : opponent;
       const loser = isWinnerP1 ? opponent : challenger;
       
-      const winnerListRank = players.findIndex(p => p.id === winner.id);
-      const loserListRank = players.findIndex(p => p.id === loser.id);
+      const winnerPos = winner.rank_position;
+      const loserPos = loser.rank_position;
 
-      // Cálculo de Puntos
-      let pointsGained = (winnerListRank > loserListRank) ? 25 : (Math.abs(winnerListRank - loserListRank) <= 2 ? 15 : 10);
+      // --- CÁLCULO DE PUNTOS SEGÚN REGLAMENTO (IMÁGENES) ---
+      let pointsGained = 0;
+      let loserPenalty = 5; 
+
+      if (winnerPos > loserPos) {
+        pointsGained = 25; 
+      } else if (Math.abs(winnerPos - loserPos) <= 2) {
+        pointsGained = 15; 
+      } else {
+        pointsGained = 10; 
+      }
+
       const isGoldenSet = (isWinnerP1 ? score2 : score1) === 0;
-      if (isGoldenSet) pointsGained += 5;
+      if (isGoldenSet) pointsGained += 5; 
+
+      if (loserPos <= 3 && (winnerPos - loserPos) >= 10) {
+        loserPenalty = 15; 
+      }
+
+      const now = new Date().toISOString();
 
       // 1. Guardar Match
       const { error: matchError } = await supabase.from('matches').insert([{ 
@@ -92,41 +105,43 @@ export function MatchForm() {
         points_exchanged: pointsGained, 
         is_golden_set: isGoldenSet
       }]);
-      if (matchError) throw new Error("Error al guardar el registro del partido.");
+      if (matchError) throw new Error("Error al guardar el registro.");
 
-      // 2. Actualizar Ganador
+      // 2. Actualizar Ganador (Resetea inactividad con last_match_at)
       const { error: winUpdateError } = await supabase
         .from('players')
         .update({ 
           points: (winner.points || 0) + pointsGained, 
-          wins: (winner.wins || 0) + 1 
+          wins: (winner.wins || 0) + 1,
+          last_match_at: now
         })
         .eq('id', winner.id);
       if (winUpdateError) throw new Error("Error al actualizar puntos del ganador.");
 
-      // 3. Actualizar Perdedor
+      // 3. Actualizar Perdedor (Resetea inactividad con last_match_at)
       const { error: loseUpdateError } = await supabase
         .from('players')
         .update({ 
-          points: Math.max(0, (loser.points || 0) - 5), 
-          losses: (loser.losses || 0) + 1 
+          points: Math.max(0, (loser.points || 0) - loserPenalty), 
+          losses: (loser.losses || 0) + 1,
+          last_match_at: now
         })
         .eq('id', loser.id);
       if (loseUpdateError) throw new Error("Error al actualizar puntos del perdedor.");
 
       // 4. Lógica de Intercambio (The Ladder)
-      if (winnerListRank > loserListRank && (winnerListRank - loserListRank) <= 3) {
-        await supabase.from('players').update({ rank_position: loser.rank_position }).eq('id', winner.id);
-        await supabase.from('players').update({ rank_position: winner.rank_position }).eq('id', loser.id);
+      if (winnerPos > loserPos && (winnerPos - loserPos) <= 3) {
+        await supabase.from('players').update({ rank_position: loserPos }).eq('id', winner.id);
+        await supabase.from('players').update({ rank_position: winnerPos }).eq('id', loser.id);
       }
 
       setMessage({ 
         type: 'success', 
-        text: isWinnerP1 ? `¡Victoria sellada! +${pointsGained} pts.` : `Derrota registrada. Ánimo para la próxima.`
+        text: isWinnerP1 ? `¡Victoria sellada! +${pointsGained} pts.` : `Derrota registrada. -${loserPenalty} pts.`
       });
       
       setScore1(0); setScore2(0); setOpponentPin('');
-      await fetchPlayers(); // Recarga la lista para ver el nuevo ranking
+      await fetchPlayers();
       
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
