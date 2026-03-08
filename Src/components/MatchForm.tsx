@@ -6,7 +6,7 @@ import { Sword, ShieldCheck, Trophy, AlertCircle, Zap, Sparkles, User, Minus, Pl
 export function MatchForm() {
   const { user } = useAuth();
   const [players, setPlayers] = useState<any[]>([]);
-  const [player1Id, setPlayer1Id] = useState(''); // Serás tú
+  const [player1Id, setPlayer1Id] = useState(''); // Tú
   const [player2Id, setPlayer2Id] = useState(''); // Oponente
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
@@ -55,8 +55,11 @@ export function MatchForm() {
     setMessage({ type: '', text: '' });
 
     try {
+      // Obtenemos los datos más recientes de la lista cargada
       const opponent = players.find(p => p.id === player2Id);
       const challenger = players.find(p => p.id === player1Id);
+
+      if (!challenger || !opponent) throw new Error("Error al identificar a los jugadores.");
 
       // --- LÓGICA BIDIRECCIONAL DE PIN ---
       const isWinnerP1 = score1 > score2;
@@ -82,23 +85,40 @@ export function MatchForm() {
 
       // 1. Guardar Match
       const { error: matchError } = await supabase.from('matches').insert([{ 
-        winner_id: winner.id, loser_id: loser.id, 
-        winner_score: Math.max(score1, score2), loser_score: Math.min(score1, score2),
-        points_exchanged: pointsGained, is_golden_set: isGoldenSet
+        winner_id: winner.id, 
+        loser_id: loser.id, 
+        winner_score: Math.max(score1, score2), 
+        loser_score: Math.min(score1, score2),
+        points_exchanged: pointsGained, 
+        is_golden_set: isGoldenSet
       }]);
-      if (matchError) throw matchError;
+      if (matchError) throw new Error("Error al guardar el registro del partido.");
 
-      // 2. Lógica de Intercambio (The Ladder)
-      let intercambio = false;
+      // 2. Actualizar Ganador
+      const { error: winUpdateError } = await supabase
+        .from('players')
+        .update({ 
+          points: (winner.points || 0) + pointsGained, 
+          wins: (winner.wins || 0) + 1 
+        })
+        .eq('id', winner.id);
+      if (winUpdateError) throw new Error("Error al actualizar puntos del ganador.");
+
+      // 3. Actualizar Perdedor
+      const { error: loseUpdateError } = await supabase
+        .from('players')
+        .update({ 
+          points: Math.max(0, (loser.points || 0) - 5), 
+          losses: (loser.losses || 0) + 1 
+        })
+        .eq('id', loser.id);
+      if (loseUpdateError) throw new Error("Error al actualizar puntos del perdedor.");
+
+      // 4. Lógica de Intercambio (The Ladder)
       if (winnerListRank > loserListRank && (winnerListRank - loserListRank) <= 3) {
         await supabase.from('players').update({ rank_position: loser.rank_position }).eq('id', winner.id);
         await supabase.from('players').update({ rank_position: winner.rank_position }).eq('id', loser.id);
-        intercambio = true;
       }
-
-      // 3. Update Stats
-      await supabase.from('players').update({ points: (winner.points || 0) + pointsGained, wins: (winner.wins || 0) + 1 }).eq('id', winner.id);
-      await supabase.from('players').update({ points: Math.max(0, (loser.points || 0) - 5), losses: (loser.losses || 0) + 1 }).eq('id', loser.id);
 
       setMessage({ 
         type: 'success', 
@@ -106,7 +126,8 @@ export function MatchForm() {
       });
       
       setScore1(0); setScore2(0); setOpponentPin('');
-      fetchPlayers();
+      await fetchPlayers(); // Recarga la lista para ver el nuevo ranking
+      
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -147,7 +168,7 @@ export function MatchForm() {
         <div className="bg-[#161625] p-10 rounded-[3.5rem] border border-white/5 shadow-2xl relative">
           <div className="flex items-center justify-center gap-8 z-10 relative">
             <div className="flex flex-col items-center gap-4">
-              <button type="button" onClick={() => setScore1(s => Math.max(0, s + 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Plus size={16}/></button>
+              <button type="button" onClick={() => setScore1(s => s + 1)} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Plus size={16}/></button>
               <input type="number" value={score1} readOnly className="w-24 bg-transparent text-center text-6xl font-black text-white outline-none" />
               <button type="button" onClick={() => setScore1(s => Math.max(0, s - 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Minus size={16}/></button>
             </div>
@@ -158,7 +179,7 @@ export function MatchForm() {
               <span className="text-[10px] font-black text-gray-700 mt-2 uppercase tracking-widest">VS</span>
             </div>
             <div className="flex flex-col items-center gap-4">
-              <button type="button" onClick={() => setScore2(s => Math.max(0, s + 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Plus size={16}/></button>
+              <button type="button" onClick={() => setScore2(s => s + 1)} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Plus size={16}/></button>
               <input type="number" value={score2} readOnly className="w-24 bg-transparent text-center text-6xl font-black text-white outline-none" />
               <button type="button" onClick={() => setScore2(s => Math.max(0, s - 1))} className="p-2 bg-gray-800 rounded-full text-white active:scale-90 transition-all"><Minus size={16}/></button>
             </div>
