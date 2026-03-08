@@ -10,6 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type Player = {
+  // --- TUS CAMPOS ORIGINALES (INTACTOS) ---
   id: string;
   name: string;
   jersey_number: number | null;
@@ -28,6 +29,19 @@ export type Player = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+
+  // --- NUEVOS CAMPOS PARA LIGA PIBB (AGREGADOS) ---
+  first_name: string;          // Usado en tus formularios actuales
+  last_name: string | null;
+  avatar_url?: string | null;  // La clave para los nuevos Avatares
+  points?: number;             // Para el Ranking Global
+  wins?: number;               // Para estadísticas de victoria
+  losses?: number;             // Para estadísticas de derrota
+  player_number?: number;      // Para el buscador por número
+  rank_position?: number;      // Para la posición en el Ranking
+  dominant_hand?: string;      // "Derecho" o "Izquierdo"
+  racket_brand?: string;       // Marca de la raqueta
+  pin?: string;                // PIN de seguridad de 4 dígitos
 };
 
 export type Profile = {
