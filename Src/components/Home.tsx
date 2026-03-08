@@ -1,112 +1,134 @@
-import { Users, Trophy, Zap, Activity } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Trophy, Users, Activity, Clock, Calendar } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-// 1. Definimos el icono de las raquetas cruzadas (SVG personalizado)
-const TableTennisIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <circle cx="12" cy="18" r="3" />
-    <path d="M12 15V9" />
-    <path d="M5.5 11a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0Z" transform="rotate(-45 10 11)" />
-    <path d="M9.5 11a4.5 4.5 0 1 0 9 0 4.5 4.5 0 0 0-9 0Z" transform="rotate(45 14 11)" />
-  </svg>
-);
+export function Home() {
+  const [recentMatches, setRecentMatches] = useState<any[]>([]);
+  const [topPlayers, setTopPlayers] = useState<any[]>([]);
+  const [totalPlayers, setTotalPlayers] = useState(0);
+  const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month'>('all');
 
-interface HomeProps {
-  onNavigate: (page: any) => void;
-}
+  useEffect(() => {
+    const fetchData = async () => {
+      // 1. Obtener total de jugadores inscritos
+      const { count } = await supabase.from('players').select('*', { count: 'exact', head: true });
+      setTotalPlayers(count || 0);
 
-export function Home({ onNavigate }: HomeProps) {
+      // 2. Configurar el rango de fecha para el Ranking y Noticias
+      let query = supabase.from('matches').select(`*, p1:players!player1_id(first_name), p2:players!player2_id(first_name)`);
+      
+      if (dateFilter !== 'all') {
+        const now = new Date();
+        const days = dateFilter === 'week' ? 7 : 30;
+        const filterDate = new Date(now.setDate(now.getDate() - days)).toISOString();
+        query = query.gte('created_at', filterDate);
+      }
+
+      // 3. Obtener últimas 4 partidas según el filtro
+      const { data: matches } = await query.order('created_at', { ascending: false }).limit(4);
+      setRecentMatches(matches || []);
+
+      // 4. Obtener Top 3 (siempre del ranking general para el podio)
+      const { data: players } = await supabase.from('players').select('*').order('wins', { ascending: false }).limit(3);
+      setTopPlayers(players || []);
+    };
+    fetchData();
+  }, [dateFilter]);
+
   return (
-    <div className="animate-in fade-in duration-500">
-      {/* SECCIÓN DE BIENVENIDA */}
-      <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-orange-500 to-orange-700 rounded-3xl mb-6 shadow-xl shadow-orange-900/30">
-          <span className="text-5xl font-black text-white italic">P</span>
+    <div className="space-y-6 animate-in fade-in duration-500 pb-24">
+      
+      {/* SELECTOR DE FILTRO DE FECHA */}
+      <div className="flex bg-[#161625] p-1 rounded-2xl border border-gray-800">
+        {(['all', 'week', 'month'] as const).map((filter) => (
+          <button
+            key={filter}
+            onClick={() => setDateFilter(filter)}
+            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
+              dateFilter === filter ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {filter === 'all' ? 'Todo' : filter === 'week' ? '7 Días' : '30 Días'}
+          </button>
+        ))}
+      </div>
+
+      {/* 1. ESTADÍSTICAS RÁPIDAS */}
+      <div className="flex gap-4">
+        <div className="flex-1 bg-[#252538] border border-orange-500/10 rounded-3xl p-4 flex items-center gap-3">
+          <div className="bg-orange-500/20 p-2 rounded-xl text-orange-500"><Users size={20} /></div>
+          <div>
+            <p className="text-[9px] text-gray-500 uppercase font-black">Jugadores</p>
+            <p className="text-lg font-black text-white">{totalPlayers}</p>
+          </div>
         </div>
-        <h1 className="text-4xl font-black text-white mb-2 tracking-tight uppercase">
-          Bienvenido a PIBB
-        </h1>
-        <p className="text-sm text-gray-400 max-w-xs mx-auto font-medium">
-          Sistema de gestión de jugadores de la <span className="text-orange-500 font-bold">Liga de Ping Pong PIBB</span>
-        </p>
-      </div>
-
-      {/* TARJETAS DE FUNCIONES RÁPIDAS */}
-      <div className="grid grid-cols-1 gap-4 mb-10">
-        <FeatureCard
-          icon={<Users className="w-6 h-6" />}
-          title="Gestión de Jugadores"
-          description="Administra perfiles completos, fotos y biografía de los retadores."
-          onClick={() => onNavigate('players')}
-        />
-        <FeatureCard
-          icon={<Activity className="w-6 h-6" />}
-          title="Estadísticas de Juego"
-          description="Visualiza el Win Rate, puntos a favor y efectividad en cada set."
-          onClick={() => onNavigate('players')}
-        />
-        <FeatureCard
-          icon={<TableTennisIcon className="w-6 h-6" />}
-          title="Match Center"
-          description="Registra batallas en tiempo real y consulta el historial de resultados."
-          onClick={() => onNavigate('match-center')}
-        />
-      </div>
-
-      {/* BANNER DE ACCIÓN PRINCIPAL */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#252538] to-[#1C1C2E] border border-orange-500/20 rounded-3xl p-8 text-center shadow-2xl">
-        <div className="absolute top-2 right-2 opacity-10 text-orange-500">
-           <TableTennisIcon className="w-20 h-20"/>
+        <div className="flex-1 bg-[#252538] border border-orange-500/10 rounded-3xl p-4 flex items-center gap-3">
+          <div className="bg-orange-500/20 p-2 rounded-xl text-orange-500"><Activity size={20} /></div>
+          <div>
+            <p className="text-[9px] text-gray-500 uppercase font-black">Estado</p>
+            <p className="text-lg font-black text-white">LIVE</p>
+          </div>
         </div>
-
-        <Trophy className="w-12 h-12 text-orange-500 mx-auto mb-4 opacity-80" />
-        <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">
-          Domina la Mesa
-        </h2>
-        <p className="text-gray-400 text-xs mb-6 leading-relaxed">
-          Crea tu perfil, desafía a tus amigos y escala en el ranking oficial de la liga PIBB.
-        </p>
-        
-        <button
-          onClick={() => onNavigate('match-form')}
-          className="w-full bg-orange-600 hover:bg-orange-500 text-white py-4 rounded-2xl transition-all font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-orange-900/20 active:scale-95"
-        >
-          <TableTennisIcon className="w-5 h-5" />
-          REGISTRAR BATALLA
-        </button>
       </div>
-    </div>
-  );
-}
 
-// ESTO ES EL "FEATURE CARD" QUE FALTABA (El diseño de los botones individuales)
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  onClick: () => void;
-}
+      {/* 2. TOP 3 RANKING */}
+      <section>
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <Trophy size={16} className="text-orange-500" />
+          <h2 className="text-xs font-black uppercase tracking-widest text-white">Podio de la Liga</h2>
+        </div>
+        <div className="bg-[#161625] border border-gray-800 rounded-[2rem] overflow-hidden shadow-2xl">
+          {topPlayers.map((player, index) => (
+            <div key={player.id} className={`flex items-center justify-between p-5 ${index !== 2 ? 'border-b border-gray-800/50' : ''}`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${
+                  index === 0 ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40' : 'bg-gray-800 text-gray-500'
+                }`}>
+                  {index + 1}
+                </div>
+                <span className="text-sm font-bold text-white uppercase">{player.first_name}</span>
+              </div>
+              <span className="text-xs font-black text-orange-500">{player.wins}W</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
-function FeatureCard({ icon, title, description, onClick }: FeatureCardProps) {
-  return (
-    <div
-      onClick={onClick}
-      className="bg-[#161625] border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition-all cursor-pointer group flex items-start gap-4 active:scale-[0.98]"
-    >
-      <div className="bg-[#252538] p-3 rounded-xl text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-all shadow-inner">
-        {icon}
-      </div>
-      <div className="flex-1 text-left">
-        <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1">{title}</h3>
-        <p className="text-[11px] text-gray-500 font-medium leading-snug">{description}</p>
-      </div>
+      {/* 3. ÚLTIMAS PARTIDAS (NEWS FEED) */}
+      <section>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-orange-500" />
+            <h2 className="text-xs font-black uppercase tracking-widest text-white">Actividad Reciente</h2>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {recentMatches.length > 0 ? (
+            recentMatches.map((match) => (
+              <div key={match.id} className="bg-gradient-to-r from-[#252538] to-[#1C1C2E] border border-gray-800 rounded-2xl p-4 shadow-sm flex justify-between items-center transition-all active:scale-[0.97]">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white uppercase">{match.p1?.first_name}</span>
+                    <span className="text-[10px] text-orange-500 font-black italic">VS</span>
+                    <span className="text-xs font-bold text-white uppercase">{match.p2?.first_name}</span>
+                  </div>
+                  <span className="text-[9px] text-gray-600 font-medium">
+                    {new Date(match.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+                <div className="bg-orange-600/10 border border-orange-500/20 px-3 py-1.5 rounded-xl">
+                  <span className="text-sm font-black text-orange-500">{match.score_p1} - {match.score_p2}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-10 bg-[#161625] rounded-3xl border border-dashed border-gray-800">
+              <Calendar className="mx-auto text-gray-700 mb-2" size={24} />
+              <p className="text-xs text-gray-500 font-bold uppercase">Sin partidas en este periodo</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
