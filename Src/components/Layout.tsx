@@ -3,8 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
-  currentPage: 'players' | 'home';
-  onNavigate: (page: 'players' | 'home' | 'login') => void;
+  currentPage: string;
+  onNavigate: (page: any) => void;
 }
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
@@ -12,66 +12,47 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   const handleSignOut = async () => {
     await signOut();
-    onNavigate('login');
+    // No es necesario onNavigate('login') si tu App.tsx ya maneja el estado !user
   };
 
   return (
-    <div className="min-h-screen bg-[#1C1C2E] text-white">
-      <nav className="bg-[#252538] border-b border-gray-700">
+    <div className="min-h-screen bg-[#1C1C2E] text-white flex flex-col">
+      {/* NAVEGACIÓN SUPERIOR COMPACTA */}
+      <nav className="bg-[#161625] border-b border-gray-800 sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center font-bold text-xl">
-                  P
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">PIBB</h1>
-                  <p className="text-xs text-gray-400">Liga de Baloncesto</p>
-                </div>
+            
+            {/* LOGO E IDENTIDAD - CAMBIO A PING PONG */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-orange-600 rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-orange-900/20">
+                P
               </div>
-
-              <div className="hidden md:flex space-x-6">
-                <button
-                  onClick={() => onNavigate('home')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'home'
-                      ? 'bg-orange-500/20 text-orange-400'
-                      : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  Inicio
-                </button>
-                <button
-                  onClick={() => onNavigate('players')}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    currentPage === 'players'
-                      ? 'bg-orange-500/20 text-orange-400'
-                      : 'text-gray-300 hover:text-white hover:bg-gray-700'
-                  }`}
-                >
-                  Jugadores
-                </button>
+              <div className="flex flex-col">
+                <h1 className="text-lg font-black leading-none tracking-tighter">PIBB</h1>
+                <p className="text-[10px] text-orange-500 uppercase font-black tracking-widest mt-0.5">
+                  Liga de Ping Pong
+                </p>
               </div>
             </div>
 
+            {/* SECCIÓN DE USUARIO */}
             {user && (
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 text-sm">
-                  <User className="w-4 h-4" />
-                  <span className="text-gray-300">{profile?.full_name || user.email}</span>
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex flex-col items-end mr-2">
+                  <span className="text-[11px] text-gray-300 font-bold truncate max-w-[100px]">
+                    {profile?.full_name || user.email?.split('@')[0]}
+                  </span>
                   {profile?.role === 'admin' && (
-                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded">
-                      Admin
-                    </span>
+                    <span className="text-[9px] text-orange-400 font-black uppercase">Admin</span>
                   )}
                 </div>
+                
                 <button
                   onClick={handleSignOut}
-                  className="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors text-sm"
+                  className="p-2.5 bg-gray-800/50 hover:bg-red-900/20 text-gray-400 hover:text-red-500 rounded-xl border border-gray-700 transition-all active:scale-90"
+                  title="Cerrar sesión"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Cerrar sesión</span>
                 </button>
               </div>
             )}
@@ -79,7 +60,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
       </nav>
 
-      <main className="container mx-auto px-4 py-8">
+      {/* CONTENIDO PRINCIPAL - ELIMINADO EL MARGEN EXCESIVO */}
+      <main className="flex-1 w-full max-w-md mx-auto px-4 py-6 pb-24">
         {children}
       </main>
     </div>
