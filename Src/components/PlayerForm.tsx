@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, Shield, Rocket, Info, AlertTriangle } from 'lucide-react';
+import { UserPlus, Shield, Rocket, AlertTriangle, ChevronRight } from 'lucide-react';
 
 export function PlayerForm() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
-  // Mantenemos tus estados originales intactos
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -24,7 +23,7 @@ export function PlayerForm() {
     setMessage({ type: '', text: '' });
 
     try {
-      // --- NUEVA PROTECCIÓN: VERIFICAR SI YA EXISTE EL USUARIO ---
+      // 1. VALIDACIÓN: Usuario ya registrado
       const { data: existingPlayer } = await supabase
         .from('players')
         .select('id')
@@ -34,12 +33,23 @@ export function PlayerForm() {
       if (existingPlayer) {
         throw new Error('Ya tienes un perfil de batalla vinculado. No puedes crear otro.');
       }
-      // ---------------------------------------------------------
 
-      // Obtener el total para asignar la posición inicial en el ranking
+      // 2. VALIDACIÓN: Número de ficha duplicado (Tu nueva actualización)
+      const { data: duplicateNumber } = await supabase
+        .from('players')
+        .select('id')
+        .eq('player_number', formData.playerNumber)
+        .maybeSingle();
+
+      if (duplicateNumber) {
+        throw new Error(`El número de ficha #${formData.playerNumber} ya está asignado a otro atleta.`);
+      }
+
+      // 3. CÁLCULO DE POSICIÓN INICIAL
       const { count } = await supabase.from('players').select('*', { count: 'exact', head: true });
       const nextRank = (count || 0) + 1;
 
+      // 4. INSERCIÓN DE DATOS (Manteniendo equipamiento y mano)
       const { error } = await supabase.from('players').insert([{
         auth_id: user?.id,
         first_name: formData.firstName,
@@ -58,7 +68,7 @@ export function PlayerForm() {
       if (error) throw error;
 
       setMessage({ type: 'success', text: '¡Perfil de Atleta creado con éxito!' });
-      // Aquí puedes resetear el form o redirigir
+      
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -68,7 +78,6 @@ export function PlayerForm() {
 
   return (
     <div className="p-6 bg-[#0F0F1A] min-h-screen pb-24 animate-in fade-in duration-500">
-      {/* Tu encabezado original */}
       <div className="flex items-center gap-3 mb-8">
         <div className="p-3 bg-orange-600 rounded-2xl shadow-lg shadow-orange-600/20">
           <UserPlus className="text-white w-6 h-6" />
@@ -79,12 +88,88 @@ export function PlayerForm() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Aquí van tus inputs de nombre, apellido, ficha, etc. */}
-        {/* Asegúrate de incluir este bloque de mensajes para que el usuario vea el error de duplicado */}
-        
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">Nombre</label>
+            <input 
+              required
+              type="text" 
+              value={formData.firstName}
+              onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+              className="w-full bg-[#161625] border border-gray-800 text-white p-4 rounded-2xl font-bold focus:border-orange-500 outline-none transition-all"
+              placeholder="Ej: Abieser"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">Apellido</label>
+            <input 
+              required
+              type="text" 
+              value={formData.lastName}
+              onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+              className="w-full bg-[#161625] border border-gray-800 text-white p-4 rounded-2xl font-bold focus:border-orange-500 outline-none transition-all"
+              placeholder="Ej: Pérez"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest flex items-center gap-2">
+            <Shield size={10} className="text-orange-500" /> Número de Ficha
+          </label>
+          <input 
+            required
+            type="number" 
+            value={formData.playerNumber}
+            onChange={(e) => setFormData({...formData, playerNumber: e.target.value})}
+            className="w-full bg-[#161625] border border-gray-800 text-white p-4 rounded-2xl font-black text-xl focus:border-orange-500 outline-none transition-all"
+            placeholder="01"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">Equipamiento</label>
+            <select 
+              value={formData.equipment}
+              onChange={(e) => setFormData({...formData, equipment: e.target.value})}
+              className="w-full bg-[#161625] border border-gray-800 text-white p-4 rounded-2xl font-bold focus:border-orange-500 outline-none appearance-none"
+            >
+              <option value="STIGA">STIGA</option>
+              <option value="BUTTERFLY">BUTTERFLY</option>
+              <option value="DONIC">DONIC</option>
+              <option value="DHS">DHS</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">Mano Dominante</label>
+            <select 
+              value={formData.hand}
+              onChange={(e) => setFormData({...formData, hand: e.target.value})}
+              className="w-full bg-[#161625] border border-gray-800 text-white p-4 rounded-2xl font-bold focus:border-orange-500 outline-none appearance-none"
+            >
+              <option value="DERECHO">DERECHO</option>
+              <option value="ZURDO">ZURDO</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-gray-500 uppercase ml-2 tracking-widest">PIN de Autorización (4 dígitos)</label>
+          <input 
+            required
+            type="password" 
+            maxLength={4}
+            value={formData.pin}
+            onChange={(e) => setFormData({...formData, pin: e.target.value})}
+            className="w-full bg-[#161625] border border-gray-800 text-white p-4 rounded-2xl font-mono text-center text-2xl tracking-[0.5em] focus:border-orange-500 outline-none transition-all"
+            placeholder="****"
+          />
+        </div>
+
         {message.text && (
-          <div className={`p-5 rounded-[2rem] text-[10px] font-black text-center uppercase border-2 flex items-center justify-center gap-3 ${
+          <div className={`p-5 rounded-[2rem] text-[10px] font-black text-center uppercase border-2 flex items-center justify-center gap-3 animate-in zoom-in-95 ${
             message.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-green-500/10 border-green-500/20 text-green-500'
           }`}>
             {message.type === 'error' ? <AlertTriangle size={14} /> : <Rocket size={14} />}
@@ -94,9 +179,14 @@ export function PlayerForm() {
 
         <button 
           disabled={loading}
-          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-6 rounded-[2rem] shadow-[0_15px_40px_rgba(234,88,12,0.3)] transition-all active:scale-95 disabled:opacity-50 uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-2"
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-black py-6 rounded-[2rem] shadow-[0_15px_40px_rgba(234,88,12,0.3)] transition-all active:scale-95 disabled:opacity-50 uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-2 mt-4"
         >
-          {loading ? 'Creando Atleta...' : 'Comenzar Carrera'}
+          {loading ? 'Sincronizando...' : (
+            <>
+              Comenzar Carrera
+              <ChevronRight size={16} />
+            </>
+          )}
         </button>
       </form>
     </div>
